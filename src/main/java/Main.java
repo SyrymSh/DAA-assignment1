@@ -1,5 +1,3 @@
-
-
 import algorithms.MergeSort;
 import util.AlgorithmMetrics;
 import util.AlgorithmResult;
