@@ -2,8 +2,10 @@ package util;
 
 import algorithms.MergeSort;
 import algorithms.QuickSort;
+import algorithms.DeterministicSelect;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
 public class BenchmarkRunner {
     private static final int[] SIZES = {100, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000};
@@ -55,13 +57,18 @@ public class BenchmarkRunner {
 
         // Benchmark MergeSort
         AlgorithmResult mergeResult = benchmarkAlgorithm("MergeSort", originalArray,
-                metrics -> new MergeSort(metrics));
+                metrics -> new MergeSort(metrics), AlgorithmType.SORT);
         results.add(mergeResult);
 
         // Benchmark QuickSort
         AlgorithmResult quickResult = benchmarkAlgorithm("QuickSort", originalArray,
-                metrics -> new QuickSort(metrics));
+                metrics -> new QuickSort(metrics), AlgorithmType.SORT);
         results.add(quickResult);
+
+        // Benchmark DeterministicSelect (find median)
+        AlgorithmResult selectResult = benchmarkAlgorithm("DeterministicSelect", originalArray,
+                metrics -> new DeterministicSelect(metrics), AlgorithmType.SELECT);
+        results.add(selectResult);
 
         return results;
     }
@@ -71,9 +78,14 @@ public class BenchmarkRunner {
         Object create(AlgorithmMetrics metrics);
     }
 
+    private enum AlgorithmType {
+        SORT, SELECT
+    }
+
     private static AlgorithmResult benchmarkAlgorithm(String algorithmName,
                                                       int[] originalArray,
-                                                      AlgorithmFactory factory) {
+                                                      AlgorithmFactory factory,
+                                                      AlgorithmType type) {
         long totalTime = 0;
         long totalComparisons = 0;
         long totalSwaps = 0;
@@ -82,20 +94,37 @@ public class BenchmarkRunner {
         // Run multiple times for stability
         for (int run = 0; run < MEASURED_RUNS; run++) {
             AlgorithmMetrics metrics = new AlgorithmMetrics();
-
-            Object sorter = factory.create(metrics);
             int[] testArray = originalArray.clone();
 
-            // Cast to appropriate type and sort
-            if (sorter instanceof MergeSort) {
-                ((MergeSort) sorter).sort(testArray);
-            } else if (sorter instanceof QuickSort) {
-                ((QuickSort) sorter).sort(testArray);
-            }
+            Object algorithm = factory.create(metrics);
 
-            // Verify sorting is correct
-            if (!ArrayUtils.isSorted(testArray)) {
-                System.err.println("❌ " + algorithmName + " produced incorrect result!");
+            if (type == AlgorithmType.SORT) {
+                // Handle sorting algorithms
+                if (algorithm instanceof MergeSort) {
+                    ((MergeSort) algorithm).sort(testArray);
+                } else if (algorithm instanceof QuickSort) {
+                    ((QuickSort) algorithm).sort(testArray);
+                }
+
+                // Verify sorting is correct
+                if (!ArrayUtils.isSorted(testArray)) {
+                    System.err.println("❌ " + algorithmName + " produced incorrect result!");
+                }
+            } else if (type == AlgorithmType.SELECT) {
+                // Handle selection algorithm
+                DeterministicSelect selector = (DeterministicSelect) algorithm;
+                int k = testArray.length / 2; // Find median for consistent comparison
+                int result = selector.select(testArray, k);
+
+                // Verify result against Arrays.sort()
+                int[] sortedCopy = testArray.clone();
+                Arrays.sort(sortedCopy);
+                int expected = sortedCopy[k];
+
+                if (result != expected) {
+                    System.err.println("❌ " + algorithmName + " produced incorrect result!");
+                    System.err.println("Expected: " + expected + ", Got: " + result);
+                }
             }
 
             // Accumulate metrics
@@ -121,42 +150,85 @@ public class BenchmarkRunner {
         int[] warmupArray = ArrayGenerator.generateRandom(1000);
         AlgorithmMetrics metrics = new AlgorithmMetrics();
 
-        // Warmup both algorithms
+        // Warmup all algorithms
         for (int i = 0; i < WARMUP_RUNS; i++) {
+            // Warmup sorting algorithms
             new MergeSort(metrics).sort(warmupArray.clone());
             new QuickSort(metrics).sort(warmupArray.clone());
+
+            // Warmup selection algorithm (find median)
+            DeterministicSelect selector = new DeterministicSelect(metrics);
+            int k = warmupArray.length / 2;
+            selector.select(warmupArray.clone(), k);
+
             metrics.reset();
         }
     }
 
-    private static boolean isSorted(int[] arr) {
-        return ArrayUtils.isSorted(arr);
-    }
-
     private static void printSizeComparison(List<AlgorithmResult> results) {
-        AlgorithmResult merge = results.get(0);
-        AlgorithmResult quick = results.get(1);
+        if (results.size() >= 3) {
+            AlgorithmResult merge = results.get(0);
+            AlgorithmResult quick = results.get(1);
+            AlgorithmResult select = results.get(2);
 
-        double timeRatio = (double) quick.timeNs / merge.timeNs;
-        System.out.printf("  %s: %,d ns | %s: %,d ns | Ratio: %.2fx%n",
-                merge.algorithmName, merge.timeNs,
-                quick.algorithmName, quick.timeNs,
-                timeRatio);
+            System.out.printf("  %s: %,9d ns | %s: %,9d ns | %s: %,9d ns%n",
+                    merge.algorithmName, merge.timeNs,
+                    quick.algorithmName, quick.timeNs,
+                    select.algorithmName, select.timeNs);
+
+            // Show relative performance
+            double quickVsMerge = (double) quick.timeNs / merge.timeNs;
+            double selectVsMerge = (double) select.timeNs / merge.timeNs;
+            System.out.printf("  Relative to MergeSort: QuickSort=%.2fx, Select=%.2fx%n",
+                    quickVsMerge, selectVsMerge);
+        }
     }
 
     private static void printSummary(List<AlgorithmResult> results) {
         System.out.println("\n=== SUMMARY ===");
-        System.out.printf("%-10s %-12s %-12s %-10s%n",
-                "Size", "MergeSort", "QuickSort", "Ratio");
-        System.out.println("----------------------------------------");
+        System.out.printf("%-10s %-12s %-12s %-12s %-10s%n",
+                "Size", "MergeSort", "QuickSort", "Select", "Q/M Ratio");
+        System.out.println("----------------------------------------------------");
 
-        for (int i = 0; i < results.size(); i += 2) {
-            AlgorithmResult merge = results.get(i);
-            AlgorithmResult quick = results.get(i + 1);
-            double ratio = (double) quick.timeNs / merge.timeNs;
+        for (int i = 0; i < results.size(); i += 3) {
+            if (i + 2 < results.size()) {
+                AlgorithmResult merge = results.get(i);
+                AlgorithmResult quick = results.get(i + 1);
+                AlgorithmResult select = results.get(i + 2);
 
-            System.out.printf("%-10d %-12d %-12d %-10.2fx%n",
-                    merge.n, merge.timeNs, quick.timeNs, ratio);
+                double quickRatio = (double) quick.timeNs / merge.timeNs;
+                double selectRatio = (double) select.timeNs / merge.timeNs;
+
+                System.out.printf("%-10d %-12d %-12d %-12d %-10.2fx%n",
+                        merge.n, merge.timeNs, quick.timeNs, select.timeNs, quickRatio);
+            }
+        }
+
+        // Print additional analysis
+        printComplexityAnalysis(results);
+    }
+
+    private static void printComplexityAnalysis(List<AlgorithmResult> results) {
+        System.out.println("\n=== COMPLEXITY ANALYSIS ===");
+        System.out.println("Expected complexities:");
+        System.out.println("- MergeSort: O(n log n)");
+        System.out.println("- QuickSort: O(n log n) average, O(n²) worst-case");
+        System.out.println("- DeterministicSelect: O(n) guaranteed");
+        System.out.println("\nObserved trends:");
+
+        // Analyze the last few sizes to see growth patterns
+        int analysisSizes = Math.min(3, SIZES.length);
+        for (int i = SIZES.length - analysisSizes; i < SIZES.length; i++) {
+            int sizeIndex = i * 3;
+            if (sizeIndex + 2 < results.size()) {
+                AlgorithmResult merge = results.get(sizeIndex);
+                AlgorithmResult quick = results.get(sizeIndex + 1);
+                AlgorithmResult select = results.get(sizeIndex + 2);
+
+                System.out.printf("\nSize %d:", merge.n);
+                System.out.printf(" MergeSort=%,dns, QuickSort=%,dns, Select=%,dns",
+                        merge.timeNs, quick.timeNs, select.timeNs);
+            }
         }
     }
 }
