@@ -1,25 +1,34 @@
 package algorithms;
 
 import util.AlgorithmMetrics;
+import util.ArrayUtils;
 
 public class MergeSort {
     private AlgorithmMetrics metrics;
+    private static final int INSERTION_CUTOFF = 15;
 
     public MergeSort(AlgorithmMetrics metrics) {
         this.metrics = metrics;
     }
 
     public void sort(int[] arr) {
+        if (ArrayUtils.isTrivialArray(arr)) return;
+
         metrics.startTimer();
         int[] buffer = new int[arr.length];
         mergeSort(arr, 0, arr.length - 1, buffer);
         metrics.stopTimer();
+
+        if (!ArrayUtils.isSorted(arr)) {
+            System.err.println("MergeSort: Array not sorted correctly!");
+        }
     }
 
     private void mergeSort(int[] arr, int left, int right, int[] buffer) {
         metrics.enterRecursion();
 
-        if (right - left <= 15) { // Cutoff for small arrays
+        // Use cutoff for small arrays
+        if (right - left <= INSERTION_CUTOFF) {
             insertionSort(arr, left, right);
             metrics.exitRecursion();
             return;
@@ -34,7 +43,8 @@ public class MergeSort {
     }
 
     private void merge(int[] arr, int left, int mid, int right, int[] buffer) {
-        System.arraycopy(arr, left, buffer, left, right - left + 1);
+        // Use utility method for array copy
+        ArrayUtils.copyRange(arr, left, buffer, left, right - left + 1);
 
         int i = left, j = mid + 1, k = left;
         while (i <= mid && j <= right) {
@@ -44,12 +54,10 @@ public class MergeSort {
             } else {
                 arr[k++] = buffer[j++];
             }
-            metrics.recordSwap();
         }
 
         while (i <= mid) {
             arr[k++] = buffer[i++];
-            metrics.recordSwap();
         }
     }
 
@@ -61,15 +69,12 @@ public class MergeSort {
             while (j >= left) {
                 metrics.recordComparison();
                 if (arr[j] > key) {
-                    arr[j + 1] = arr[j];
-                    metrics.recordSwap();
+                    ArrayUtils.swap(arr, j, j + 1, metrics);
                     j--;
                 } else {
                     break;
                 }
             }
-            arr[j + 1] = key;
-            metrics.recordSwap();
         }
     }
 }

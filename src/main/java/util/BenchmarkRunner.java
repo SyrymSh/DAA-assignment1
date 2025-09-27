@@ -94,7 +94,7 @@ public class BenchmarkRunner {
             }
 
             // Verify sorting is correct
-            if (!isSorted(testArray)) {
+            if (!ArrayUtils.isSorted(testArray)) {
                 System.err.println("❌ " + algorithmName + " produced incorrect result!");
             }
 
@@ -130,12 +130,7 @@ public class BenchmarkRunner {
     }
 
     private static boolean isSorted(int[] arr) {
-        for (int i = 1; i < arr.length; i++) {
-            if (arr[i] < arr[i - 1]) {
-                return false;
-            }
-        }
-        return true;
+        return ArrayUtils.isSorted(arr);
     }
 
     private static void printSizeComparison(List<AlgorithmResult> results) {

@@ -1,6 +1,7 @@
 package algorithms;
 
 import util.AlgorithmMetrics;
+import util.ArrayUtils;
 
 public class QuickSort {
     private AlgorithmMetrics metrics;
@@ -11,18 +12,28 @@ public class QuickSort {
     }
 
     public void sort(int[] arr) {
-        if (arr == null || arr.length <= 1) return;
+        // Use guard to check trivial cases
+        if (ArrayUtils.isTrivialArray(arr)) return;
+
         metrics.startTimer();
         quickSort(arr, 0, arr.length - 1);
         metrics.stopTimer();
+
+        // Verify result
+        if (!ArrayUtils.isSorted(arr)) {
+            System.err.println("QuickSort: Array not sorted correctly!");
+        }
     }
 
     private void quickSort(int[] arr, int low, int high) {
         metrics.enterRecursion();
 
+        // Use iteration for larger partition to limit stack depth
         while (high - low > INSERTION_CUTOFF) {
-            int pivotIndex = partition(arr, low, high);
+            // Use utility method for randomized partition
+            int pivotIndex = ArrayUtils.partitionRandomized(arr, low, high, metrics);
 
+            // Recurse on smaller partition, iterate on larger
             if (pivotIndex - low < high - pivotIndex) {
                 quickSort(arr, low, pivotIndex - 1);
                 low = pivotIndex + 1;
@@ -32,30 +43,12 @@ public class QuickSort {
             }
         }
 
+        // Insertion sort for small arrays
         if (high > low) {
             insertionSort(arr, low, high);
         }
 
         metrics.exitRecursion();
-    }
-
-    private int partition(int[] arr, int low, int high) {
-        int pivotIndex = low + (int) (Math.random() * (high - low + 1));
-        swap(arr, pivotIndex, high);
-
-        int pivot = arr[high];
-        int i = low - 1;
-
-        for (int j = low; j < high; j++) {
-            metrics.recordComparison();
-            if (arr[j] <= pivot) {
-                i++;
-                swap(arr, i, j);
-            }
-        }
-
-        swap(arr, i + 1, high);
-        return i + 1;
     }
 
     private void insertionSort(int[] arr, int low, int high) {
@@ -66,24 +59,14 @@ public class QuickSort {
             while (j >= low) {
                 metrics.recordComparison();
                 if (arr[j] > key) {
-                    arr[j + 1] = arr[j];
-                    metrics.recordSwap();
+                    // Use utility swap method
+                    ArrayUtils.swap(arr, j, j + 1, metrics);
                     j--;
                 } else {
                     break;
                 }
             }
             arr[j + 1] = key;
-            metrics.recordSwap();
-        }
-    }
-
-    private void swap(int[] arr, int i, int j) {
-        if (i != j) {
-            metrics.recordSwap();
-            int temp = arr[i];
-            arr[i] = arr[j];
-            arr[j] = temp;
         }
     }
 }
