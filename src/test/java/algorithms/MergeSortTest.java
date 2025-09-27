@@ -1,8 +1,6 @@
-package algotihms;
-import algorithms.MergeSort;
+package algorithms;
 import util.AlgorithmMetrics;
 import static org.junit.jupiter.api.Assertions.*;
-import java.util.ArrayList;
 
 public class MergeSortTest {
 
