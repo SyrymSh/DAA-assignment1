@@ -12,7 +12,17 @@ public class CSVWriter {
     private static final String RESULTS_FOLDER = "test-results";
 
     public static boolean writeMetrics(String filename, List<AlgorithmResult> results) {
-        return writeMetrics(RESULTS_FOLDER, filename, results);
+        // Ensure test-results directory exists
+        File resultsDir = new File("test-results");
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+
+        // If filename doesn't have path, put it in test-results
+        File outputFile = new File(filename.contains(File.separator) ? filename :
+                resultsDir.getPath() + File.separator + filename);
+
+        return writeMetrics(outputFile.getParent(), outputFile.getName(), results);
     }
 
     public static boolean writeMetrics(String folderPath, String filename, List<AlgorithmResult> results) {
@@ -53,6 +63,8 @@ public class CSVWriter {
             return false;
         }
     }
+
+
 
     // Method to create timestamped subfolder for organized results
     public static String createTimestampedFolder() {
